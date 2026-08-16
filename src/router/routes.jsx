@@ -11,17 +11,20 @@ import NotFound from "@/pages/NotFound";
  * Route table. Nested under a single persistent layout so the
  * background, cursor and navbar never remount between pages.
  */
-export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <RootLayout />,
-    children: [
-      { index: true, element: <Home /> },
-      { path: "about", element: <About /> },
-      { path: "work", element: <Work /> },
-      { path: "work/:slug", element: <CaseStudy /> },
-      { path: "contact", element: <Contact /> },
-      { path: "*", element: <NotFound /> },
-    ],
-  },
-]);
+export const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      element: <RootLayout />,
+      children: [
+        { index: true, element: <Home /> },
+        { path: "about", element: <About /> },
+        { path: "work", element: <Work /> },
+        { path: "work/:slug", element: <CaseStudy /> },
+        { path: "contact", element: <Contact /> },
+        { path: "*", element: <NotFound /> },
+      ],
+    },
+  ],
+  { basename: import.meta.env.BASE_URL }
+);
