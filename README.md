@@ -154,19 +154,13 @@ the `/work` grid, and its own page at `/work/<slug>`. No other file changes.
 
 ## Deploying
 
-Static SPA — any host works.
+Hosted on **Vercel**. Push to `main` and Vercel builds and deploys automatically.
 
-**Vercel / Netlify:** build `npm run build`, output `dist`. Add a rewrite so
-client-side routes resolve on refresh:
-
-```
-/*  /index.html  200
-```
-
-Vercel: add `vercel.json` with
-`{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`.
-
-Without this, `/work/paired-accounts` will 404 on a hard refresh.
+- Build `npm run build`, output `dist`
+- [`vercel.json`](vercel.json) rewrites client-side routes to `index.html` so
+  `/work/paired-accounts` survives a hard refresh, while leaving `/api/*` free
+  for serverless functions
+- Visit tracking setup lives in [TRACKING.md](TRACKING.md)
 
 ---
 

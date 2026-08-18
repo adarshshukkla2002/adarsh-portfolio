@@ -3,3 +3,8 @@ dist
 .DS_Store
 *.local
 .vercel
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
