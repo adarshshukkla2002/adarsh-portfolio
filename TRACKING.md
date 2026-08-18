@@ -112,15 +112,26 @@ notifications per visitor is how you end up muting the bot.
 
 ## 5. Reliability, honestly
 
-| Signal | Trustworthy? |
-|---|---|
-| `?r=` tag | Yes — you control it |
-| Channel from referrer | ~40–60%. Blank from mobile apps, PDFs, WhatsApp |
-| First vs. return visit | Yes, unless they clear storage or switch device |
-| Country | ~98% |
-| City | Coin flip on Indian mobile networks — Jio/Airtel IPs resolve to a carrier hub, so Indore can read as Mumbai |
-| ISP / company | Corporate networks only. A recruiter on their phone: nothing |
-| Person's name | Never. Not obtainable by any means |
+| Signal | Trustworthy? | Reported? |
+|---|---|---|
+| `?r=` tag | Yes — you control it | yes |
+| Channel from referrer | ~40–60%. Blank from mobile apps, PDFs, WhatsApp | yes |
+| First vs. return visit | Yes, unless they clear storage or switch device | yes |
+| Dwell time on a case study | Yes | yes |
+| Timezone | Yes — read from the visitor's own device | yes |
+| Country | ~98% | yes |
+| **City / region** | **Unreliable** — reported Bhopal for a visitor in Rewa, 230 km out | **dropped** |
+| **ISP name** | **Worthless** — names who sells them internet, not who they are | **suppressed** |
+| Employer name | Corporate networks only, a small minority of visits | only when it isn't a known provider |
+| Person's name | Never. Not obtainable by any means | no |
+
+City was removed rather than caveated: a confidently wrong city is worse than
+no city, because it invites you to act on it.
+
+The org line now passes through `looksLikeProvider()` and only prints when the
+name is not a recognised ISP, carrier, host or VPN exit. Most visits show no
+org line at all. That silence is the correct behaviour — it means the lookup
+found nothing worth telling you.
 
 Link-preview crawlers (LinkedIn, WhatsApp) fetch the HTML but never run JS, so
 they don't fire alerts. A user-agent filter catches the rest.

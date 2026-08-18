@@ -6,7 +6,7 @@
  *   TELEGRAM_BOT_TOKEN   from @BotFather
  *   TELEGRAM_CHAT_ID     your personal chat id
  * Optional:
- *   IPINFO_TOKEN         adds ISP / company name to the alert
+ *   IPINFO_TOKEN         only ever prints an org that is not a known provider
  *
  * With no env vars set the handler no-ops, so local dev stays quiet.
  */
@@ -25,6 +25,34 @@ const CHANNELS = [
   [/github\./, "GitHub"],
   [/^t\.co$|twitter\.|^x\.com$/, "X / Twitter"],
 ];
+
+/**
+ * Consumer ISPs, hosting and VPN exits. The ipinfo org field names whoever
+ * sells the visitor internet, which is not who they are. Printing "Bharti
+ * Airtel" on every alert is noise dressed as signal, so the line is only
+ * worth showing when the org is plausibly an employer.
+ */
+const PROVIDER_NOISE = [
+  /telecom|communication|broadband|cable|wireless|cellular|mobile/i,
+  /fibernet|fiber|telemedia|internet servic|network servic/i,
+  /hosting|datacenter|data center|cloud|vpn|colocation/i,
+  /airtel|jio|bsnl|vodafone|idea cellular|hathway|excitel|tikona|spectra/i,
+  /comcast|xfinity|verizon|at&t|t-mobile|charter|spectrum|centurylink/i,
+  /virgin media|talktalk|plusnet|deutsche telekom|telefonica/i,
+  /telstra|optus|rogers|bell canada|orange s\.a\./i,
+  /amazon|google|microsoft|digitalocean|cloudflare|linode|hetzner/i,
+];
+
+/** Short names that must match as whole words, not substrings. */
+const PROVIDER_WORDS = new Set(["bt", "sky", "ee", "o2", "three", "isp", "gtpl", "den"]);
+
+function looksLikeProvider(org) {
+  if (PROVIDER_NOISE.some((re) => re.test(org))) return true;
+  return org
+    .toLowerCase()
+    .split(/[^a-z0-9&]+/)
+    .some((word) => PROVIDER_WORDS.has(word));
+}
 
 const esc = (s) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -54,13 +82,13 @@ function identify(ref, referrer) {
   return "direct \u2014 resume, email or saved link";
 }
 
-/** Vercel populates these at the edge on every request. */
+/**
+ * Country only. City and region came back confidently wrong — Bhopal for a
+ * visitor actually in Rewa, ~230km out — and a wrong city is worse than no
+ * city, because it invites you to act on it. Country is ~98% reliable.
+ */
 function geoFrom(headers) {
-  const city = headers["x-vercel-ip-city"];
-  const region = headers["x-vercel-ip-country-region"];
-  const country = headers["x-vercel-ip-country"];
-  const parts = [city && decodeURIComponent(city), region, country].filter(Boolean);
-  return parts.length ? parts.join(", ") : "unknown location";
+  return headers["x-vercel-ip-country"] || "unknown";
 }
 
 /** Only runs when IPINFO_TOKEN is set. Failure is never fatal. */
@@ -73,7 +101,10 @@ async function orgFrom(ip) {
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data.org ? data.org.replace(/^AS\d+\s*/, "") : null;
+    if (!data.org) return null;
+
+    const org = data.org.replace(/^AS\d+\s*/, "").trim();
+    return looksLikeProvider(org) ? null : org;
   } catch {
     return null;
   }
@@ -104,7 +135,6 @@ export default async function handler(req, res) {
     event = "view",
     seconds = 0,
     device = "",
-    screen = "",
     timezone = "",
   } = body;
 
@@ -116,7 +146,6 @@ export default async function handler(req, res) {
 
   const lines = [
     `${icon} <b>${esc(identify(ref, referrer))}</b> \u00B7 ${esc(visitLabel)}`,
-    `\u{1F4CD} ${esc(geoFrom(req.headers))}${org ? ` \u00B7 ${esc(org)}` : ""}`,
     `\u{1F4C4} ${esc(path)}`,
   ];
 
@@ -125,9 +154,13 @@ export default async function handler(req, res) {
     const s = seconds % 60;
     lines.push(`\u23F1 read for ${m ? `${m}m ` : ""}${s}s`);
   }
-  if (device || screen) {
-    lines.push(`\u{1F5A5} ${esc([device, screen, timezone].filter(Boolean).join(" \u00B7 "))}`);
-  }
+
+  // Only ever appears when ipinfo returned something that is not a provider.
+  if (org) lines.push(`\u{1F3E2} ${esc(org)}`);
+
+  lines.push(
+    `\u{1F30D} ${esc(geoFrom(req.headers))}${timezone ? ` \u00B7 ${esc(timezone)}` : ""}${device ? ` \u00B7 ${esc(device)}` : ""}`
+  );
 
   try {
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
