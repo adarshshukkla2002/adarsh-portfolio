@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RouterProvider } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import { router } from "@/router/routes";
 import Preloader from "@/components/feedback/Preloader";
 
@@ -16,6 +17,7 @@ export default function App() {
       >
         <RouterProvider router={router} />
       </div>
+      <Analytics />
     </>
   );
 }
