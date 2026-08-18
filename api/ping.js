@@ -2,7 +2,7 @@
  * Visit notifier. Receives a beacon from the client, enriches it with the
  * geo headers Vercel injects at the edge, and pushes a Telegram message.
  *
- * Required env vars (Vercel → Settings → Environment Variables):
+ * Required env vars (Vercel -> Settings -> Environment Variables):
  *   TELEGRAM_BOT_TOKEN   from @BotFather
  *   TELEGRAM_CHAT_ID     your personal chat id
  * Optional:
@@ -13,17 +13,45 @@
 
 const BOT_UA = /bot|crawler|spider|crawling|preview|facebookexternalhit|slurp|headless|lighthouse/i;
 
+/** Known traffic sources, so an untagged visit still says something useful. */
+const CHANNELS = [
+  [/linkedin\./, "LinkedIn"],
+  [/^google\./, "Google search"],
+  [/mail\.google\.|outlook\.|mail\.yahoo\./, "Email link"],
+  [/naukri\./, "Naukri"],
+  [/indeed\./, "Indeed"],
+  [/wellfound\.|angel\.co/, "Wellfound"],
+  [/instahyre\.|cutshort\./, "Instahyre / Cutshort"],
+  [/github\./, "GitHub"],
+  [/^t\.co$|twitter\.|^x\.com$/, "X / Twitter"],
+];
+
 const esc = (s) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Referrer host only — the full URL is noise in a phone notification. */
 function referrerLabel(ref) {
-  if (!ref) return "direct / untracked";
+  if (!ref) return "";
   try {
     return new URL(ref).hostname.replace(/^www\./, "");
   } catch {
     return ref.slice(0, 60);
   }
+}
+
+/**
+ * Best available label for who this is, in order of confidence:
+ * an explicit ?r= tag, then a recognised referrer, then honest ignorance.
+ */
+function identify(ref, referrer) {
+  if (ref) return ref;
+
+  const host = referrerLabel(referrer);
+  if (host) {
+    const match = CHANNELS.find(([re]) => re.test(host));
+    return match ? `via ${match[1]}` : `via ${host}`;
+  }
+  return "direct \u2014 resume, email or saved link";
 }
 
 /** Vercel populates these at the edge on every request. */
@@ -83,15 +111,13 @@ export default async function handler(req, res) {
   const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   const org = await orgFrom(ip);
 
-  const who = ref ? `<b>${esc(ref)}</b>` : "<b>untagged visitor</b>";
   const visitLabel = returning ? `visit #${Number(visitCount) || 2}` : "first visit";
   const icon = event === "dwell" ? "\u23F1" : returning ? "\u{1F501}" : "\u{1F535}";
 
   const lines = [
-    `${icon} ${who} \u00B7 ${esc(visitLabel)}`,
+    `${icon} <b>${esc(identify(ref, referrer))}</b> \u00B7 ${esc(visitLabel)}`,
     `\u{1F4CD} ${esc(geoFrom(req.headers))}${org ? ` \u00B7 ${esc(org)}` : ""}`,
     `\u{1F4C4} ${esc(path)}`,
-    `\u2197\uFE0F ${esc(referrerLabel(referrer))}`,
   ];
 
   if (event === "dwell" && seconds > 0) {

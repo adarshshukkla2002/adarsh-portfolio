@@ -2,9 +2,9 @@
 
 Answers two questions: **who opened the portfolio**, and **where from**.
 
-Identity is never detected — it is attached when you share the link. You tag a
-link per recipient, and every hit on that tag resolves to a person you already
-know.
+Identity is never detected. It is either inferred from the referrer
+automatically, or attached by you when you share a link. No tagging is
+required for the system to be useful.
 
 ---
 
@@ -13,13 +13,13 @@ know.
 ### Create the Telegram bot
 
 1. Open Telegram, message **@BotFather**, send `/newbot`
-2. Pick any name and username → it replies with a **bot token**
-3. Message **@userinfobot** → it replies with your numeric **chat ID**
+2. Pick any name and username -> it replies with a **bot token**
+3. Message **@userinfobot** -> it replies with your numeric **chat ID**
 4. Send your new bot any message (`hi`) — a bot cannot message you first
 
 ### Add the env vars in Vercel
 
-Project → **Settings → Environment Variables** (apply to Production):
+Project -> **Settings -> Environment Variables** (Production):
 
 | Name | Value |
 |---|---|
@@ -27,47 +27,59 @@ Project → **Settings → Environment Variables** (apply to Production):
 | `TELEGRAM_CHAT_ID` | your numeric chat ID |
 | `IPINFO_TOKEN` | *optional* — adds ISP / company name |
 
-Redeploy after saving. Without these vars the endpoint returns `204` and does
-nothing, so local dev and preview builds stay silent.
+**Redeploy after saving.** Env vars never apply to existing deployments.
+Without these vars the endpoint returns `204` and does nothing, so local dev
+and preview builds stay silent.
 
 ---
 
-## 2. Sharing links
+## 2. Attribution, without tagging anything
 
-Never share the bare domain again. Tag every link:
+Most visits identify themselves. The referrer is read automatically and mapped
+to a channel — LinkedIn, Google, Naukri, Indeed, Wellfound, GitHub, email
+clients. You do nothing.
+
+Referrer is blank in exactly three cases, because the browser sends nothing:
+
+- a link inside a **resume PDF**
+- a link in an **email signature**
+- a link shared over **WhatsApp / Telegram**
+
+Those are the only places worth tagging, and they are set-once links you paste
+one time and never touch again:
 
 ```
-https://adarsh-portfolio-woad.vercel.app/?r=acme-capital
-https://adarsh-portfolio-woad.vercel.app/?r=fundedx-priya
-https://adarsh-portfolio-woad.vercel.app/?r=linkedin-bio
-https://adarsh-portfolio-woad.vercel.app/?r=resume-v3
+https://adarsh-portfolio-woad.vercel.app/?r=resume
+https://adarsh-portfolio-woad.vercel.app/?r=email
+https://adarsh-portfolio-woad.vercel.app/?r=whatsapp
 ```
 
-Keep the mapping somewhere — a spreadsheet column next to where you logged the
-application. `utm_source` works as an alias if you prefer standard UTM tagging.
+Per-person tags (`?r=acme-capital`) remain supported and are the only way to
+resolve a specific individual — use them when a role genuinely matters, ignore
+them otherwise. `utm_source` works as an alias.
 
-The tag is stored in `localStorage`, so a **return visit still attributes to the
-same person** even with no query string on the second visit. That returning
-signal is the most useful thing here: a first visit is browsing, a second visit
-is interest.
+A tag is stored in `localStorage`, so a **return visit still attributes to the
+same person** with no query string on the second visit. That returning signal
+is the most useful thing here: a first visit is browsing, a second is interest.
 
 ---
 
 ## 3. What arrives on your phone
 
+Untagged, referrer recognised:
+
 ```
-🔵 acme-capital · first visit
-📍 Mumbai, MH, IN · Reliance Jio
-📄 /work/paired-accounts
-↗️ linkedin.com
+🔵 via LinkedIn · first visit
+📍 Mumbai, MH, IN
+📄 /
 🖥 Chrome · Android · 393×852
 ```
 
-Then, if they actually read a case study:
+Tagged, and they actually read something:
 
 ```
-⏱ acme-capital · visit #2
-📍 Mumbai, MH, IN
+⏱ resume · visit #2
+📍 Pune, MH, IN · Acme Capital Pvt Ltd
 📄 /work/mrz-checksum
 ⏱ read for 3m 41s
 ```
@@ -83,10 +95,10 @@ notifications per visitor is how you end up muting the bot.
 | Signal | Trustworthy? |
 |---|---|
 | `?r=` tag | Yes — you control it |
+| Channel from referrer | ~40–60%. Blank from mobile apps, PDFs, WhatsApp |
 | First vs. return visit | Yes, unless they clear storage or switch device |
 | Country | ~98% |
 | City | Coin flip on Indian mobile networks — Jio/Airtel IPs resolve to a carrier hub, so Indore can read as Mumbai |
-| Referrer | ~40–60%. LinkedIn's mobile app, WhatsApp and PDF links send nothing |
 | ISP / company | Corporate networks only. A recruiter on their phone: nothing |
 | Person's name | Never. Not obtainable by any means |
 
@@ -99,14 +111,13 @@ they don't fire alerts. A user-agent filter catches the rest.
 
 | Path | Role |
 |---|---|
-| `api/ping.js` | Serverless function — reads Vercel geo headers, sends Telegram |
+| `api/ping.js` | Serverless function — geo headers, channel detection, Telegram |
 | `src/lib/visitor.js` | Tag capture, visit counting, beacon |
 | `src/hooks/useVisitTracking.js` | Fires arrival + dwell events |
 | `vercel.json` | SPA rewrite, excludes `/api/*` |
 
-Baseline traffic stats (views, referrers, countries) come from
-`@vercel/analytics`, mounted in `RootLayout.jsx` — enable Web Analytics in the
-Vercel dashboard to populate it.
+Baseline traffic stats come from `@vercel/analytics`, mounted in
+`RootLayout.jsx` — enable Web Analytics in the Vercel dashboard to populate it.
 
 ---
 
