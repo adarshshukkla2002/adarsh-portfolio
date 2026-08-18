@@ -9,6 +9,7 @@
 const KEY_REF = "pf:ref";
 const KEY_VISITS = "pf:visits";
 const KEY_SESSION = "pf:session";
+const KEY_MUTE = "pf:mute";
 
 /** localStorage throws in private mode on some browsers. Never let it break the page. */
 function safeGet(store, key) {
@@ -16,6 +17,9 @@ function safeGet(store, key) {
 }
 function safeSet(store, key, value) {
   try { store.setItem(key, value); } catch { /* ignore */ }
+}
+function safeRemove(store, key) {
+  try { store.removeItem(key); } catch { /* ignore */ }
 }
 
 /** Coarse device label. Enough for context, not a fingerprint. */
@@ -38,12 +42,20 @@ function deviceLabel() {
 
 /**
  * Resolves who this is and whether the session is new.
+ * Returns null when tracking should not fire at all.
  * Call once per page load.
  */
 export function resolveVisitor() {
   if (typeof window === "undefined") return null;
 
   const params = new URLSearchParams(window.location.search);
+
+  // Your own visits would drown the signal. Load /?mute=1 once per device
+  // you browse from; /?unmute=1 reverses it.
+  if (params.has("mute")) safeSet(localStorage, KEY_MUTE, "1");
+  if (params.has("unmute")) safeRemove(localStorage, KEY_MUTE);
+  if (safeGet(localStorage, KEY_MUTE)) return null;
+
   const incoming = params.get("r") || params.get("utm_source");
 
   // A fresh tag always wins — the newest link you shared is the live attribution.

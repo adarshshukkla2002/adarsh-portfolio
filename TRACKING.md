@@ -64,7 +64,27 @@ is the most useful thing here: a first visit is browsing, a second is interest.
 
 ---
 
-## 3. What arrives on your phone
+## 3. Muting your own visits
+
+Your own traffic is the fastest way to make these alerts worthless. Load this
+once in every browser you use — phone included:
+
+```
+https://adarsh-portfolio-woad.vercel.app/?mute=1
+```
+
+Tracking then stops firing on that device permanently. To reverse it:
+
+```
+https://adarsh-portfolio-woad.vercel.app/?unmute=1
+```
+
+The flag lives in `localStorage`, so it is per-device and per-browser, and
+clearing site data resets it.
+
+---
+
+## 4. What arrives on your phone
 
 Untagged, referrer recognised:
 
@@ -90,7 +110,7 @@ notifications per visitor is how you end up muting the bot.
 
 ---
 
-## 4. Reliability, honestly
+## 5. Reliability, honestly
 
 | Signal | Trustworthy? |
 |---|---|
@@ -107,7 +127,7 @@ they don't fire alerts. A user-agent filter catches the rest.
 
 ---
 
-## 5. Files
+## 6. Files
 
 | Path | Role |
 |---|---|
@@ -121,7 +141,7 @@ Baseline traffic stats come from `@vercel/analytics`, mounted in
 
 ---
 
-## 6. Privacy
+## 7. Privacy
 
 The function reads visitor IPs to derive location. It does not store them —
 the IP is used in-request and discarded. Under GDPR and India's DPDP Act an IP
